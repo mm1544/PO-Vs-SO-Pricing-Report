@@ -1,0 +1,80 @@
+<odoo>
+  <data>
+
+    <record id="po_vs_so_pricing_report_config_settings_view_form" model="ir.ui.view">
+      <field name="name">res.config.settings.view.po_vs_so_pricing_report</field>
+      <field name="model">res.config.settings</field>
+      <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//div[@id='connectors_setting_container']" position="after">
+          <div id="po_vs_so_pricing_report">
+            <h2>PO vs SO Pricing Report Settings</h2>
+            <div class="row mt16 o_settings_container" id="licence_expiration_report_settings_1">
+
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_right_pane">
+                  <div class="w-100">
+                    <span class="o_form_label">Recipient Email</span>
+                  </div>
+                  <div class="mt16">
+                    <field name="recipient_email"/>
+                    <br/>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_right_pane">
+                  <div class="w-100">
+                    <span class="o_form_label">Sender Email</span>
+                  </div>
+                  <div class="mt16">
+                    <field name="sender_email"/>
+                    <br/>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_right_pane">
+                  <div class="w-100">
+                    <span class="o_form_label">CC Email</span>
+                  </div>
+                  <div class="mt16">
+                    <field name="cc_email"/>
+                    <br/>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_right_pane">
+                  <div class="w-100">
+                    <span class="o_form_label">Reply To Email</span>
+                  </div>
+                  <div class="mt16">
+                    <field name="reply_to_email"/>
+                    <br/>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_right_pane">
+                  <div class="w-100">
+                    <span class="o_form_label">Email Company Name</span>
+                  </div>
+                  <div class="mt16">
+                    <field name="email_company_name"/>
+                    <br/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </xpath>
+      </field>
+    </record>
+  </data>
+</odoo>
