@@ -14,7 +14,8 @@ class PricingReport(models.Model):
     _inherit = 'sale.order'
 
     HEADER_TEXT = 'PO vs SO Pricing Report'
-    HEADER_VALUES_LIST = ['Sale Order', 'Purchase Order', 'Cost on Sale Order', 'Unit Price on Purchase Order', 'Quantity', 'Price Difference', 'Product Code', 'Product Name', 'Customer']
+    HEADER_VALUES_LIST = ['Sale Order', 'Purchase Order', 'Cost on Sale Order', 'Unit Price on Purchase Order',
+                          'Quantity', 'Price Difference', 'Product Code', 'Product Name', 'Customer']
 
     def prepare_email_content(self):
         """Prepares the content of the email."""
@@ -34,30 +35,33 @@ class PricingReport(models.Model):
         except Exception as e:
             _logger.error(f"Error getting configuration parameter {key}: {e}")
             return ''
-    
+
     def get_first_day_of_previous_month(self):
         """Returns the first day of the previous month."""
         today = date.today()
         first_day_of_current_month = today.replace(day=1)
-        first_day_of_previous_month = (first_day_of_current_month - timedelta(days=1)).replace(day=1)
-        first_day_of_previous_month_datetime = datetime.combine(first_day_of_previous_month, datetime.min.time())
-        
+        first_day_of_previous_month = (
+            first_day_of_current_month - timedelta(days=1)).replace(day=1)
+        first_day_of_previous_month_datetime = datetime.combine(
+            first_day_of_previous_month, datetime.min.time())
+
         return first_day_of_previous_month_datetime
-    
+
     def get_last_day_of_previous_month(self):
         """Returns the last day of the previous month."""
         first_day_of_current_month = date.today().replace(day=1)
-        last_day_of_previous_month = first_day_of_current_month - timedelta(days=1)
-        last_day_of_previous_month_datetime = datetime.combine(last_day_of_previous_month, datetime.max.time())
+        last_day_of_previous_month = first_day_of_current_month - \
+            timedelta(days=1)
+        last_day_of_previous_month_datetime = datetime.combine(
+            last_day_of_previous_month, datetime.max.time())
 
         return last_day_of_previous_month_datetime
 
-    
     def get_sale_orders(self):
         """Finds Sale Orders within the previous month."""
         first_day = self.get_first_day_of_previous_month()
         last_day = self.get_last_day_of_previous_month()
-    
+
         return self.env['sale.order'].search([
             ('date_order', '>=', first_day),
             ('date_order', '<=', last_day),
@@ -67,7 +71,6 @@ class PricingReport(models.Model):
     def prepare_report_data(self, sale_orders):
         """Prepares the report data from sale orders."""
         res_list = []
-        # sale_orders = self.get_sale_orders()
 
         for sale_order in sale_orders:
             if not sale_order.order_line:
@@ -78,6 +81,7 @@ class PricingReport(models.Model):
                     continue
 
                 for purchase_line in sale_line.purchase_line_ids:
+                    note = ''
                     if purchase_line.order_id.state not in ['purchase', 'done']:
                         continue
                     if purchase_line.product_id.x_include_in_apple_s2w_report:
@@ -86,25 +90,38 @@ class PricingReport(models.Model):
                         continue
                     if purchase_line.product_id.type not in ["product"]:
                         continue
-                        
-                    price_difference = (sale_line.purchase_price - purchase_line.price_unit) * purchase_line.product_qty
+
+                    purchase_line_unit_price = purchase_line.price_unit
+                    purchase_currency = purchase_line.order_id.currency_id
+                    sale_currency = sale_line.order_id.currency_id
+
+                    if purchase_currency != sale_currency:
+                        note = f'SO currency is {sale_currency.name} and PO currency is {purchase_currency.name}'
+                        sale_date = sale_order.date_order
+
+                        # Convert purchase unit price to sale order's currency
+                        purchase_line_unit_price = purchase_currency._convert(
+                            purchase_line_unit_price, sale_currency, sale_order.company_id, sale_date)
+
+                    price_difference = (
+                        sale_line.purchase_price - purchase_line_unit_price) * purchase_line.product_qty
 
                     if price_difference > 0:
                         res_list.append([
-                            sale_order.name, 
-                            purchase_line.order_id.name, 
-                            sale_line.purchase_price, 
-                            purchase_line.price_unit,
+                            sale_order.name,
+                            purchase_line.order_id.name,
+                            sale_line.purchase_price,
+                            purchase_line_unit_price,
                             purchase_line.product_qty,
                             price_difference,
                             sale_line.product_id.default_code,
                             sale_line.product_id.name,
-                            sale_order.partner_id.display_name
+                            sale_order.partner_id.display_name,
+                            note
                         ])
 
         return res_list
-                
-    
+
     def generate_xlsx_file(self, data_matrix):
         """Generates an XLSX file from the provided data."""
         # Create a new workbook using XlsxWriter
@@ -125,17 +142,25 @@ class PricingReport(models.Model):
                 column_width += 15
             if col_num in [7, 8]:
                 column_width += 40
-                
 
             # Set the column width
             worksheet.set_column(col_num, col_num, column_width)
             worksheet.write(0, col_num, header, bold_format)
 
-
         # Write data to worksheet
         for row_num, row_data in enumerate(data_matrix, start=1):
             for col_num, cell_value in enumerate(row_data):
-                worksheet.write(row_num, col_num, cell_value)
+                if col_num == 9 and cell_value:
+                    format_to_use = workbook.add_format(
+                        {'bg_color': '#FFBF00',
+                         # 'font_color': '#c47772',
+                         })
+                    if cell_value:
+                        worksheet.set_column(col_num, col_num, len(cell_value))
+                    worksheet.write(row_num, col_num,
+                                    cell_value, format_to_use)
+                else:
+                    worksheet.write(row_num, col_num, cell_value)
 
         # Close the workbook to save changes
         workbook.close()
@@ -203,7 +228,6 @@ class PricingReport(models.Model):
             'dbname': self.env.cr.dbname,
             'level': 'info',
             'message': message,
-            # 'path': 'sale.model_sale_order',
             'path': __name__,
             'line': f'PricingReport.{function_name}',
             'func': function_name,
